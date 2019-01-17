@@ -108,3 +108,14 @@ new Date().getTimezoneOffset() // 360
 ```javascript
 npm test
 ```
+
+
+## Releasing ##
+
+The package is also published to our private NPM org using [semantic release](https://github.com/semantic-release).
+
+Needs in the env:
+```shell
+NPM_TOKEN # A token with publishing rights
+GH_TOKEN # A token with repo and public_repo rights
+```

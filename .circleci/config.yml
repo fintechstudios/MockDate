@@ -1,0 +1,106 @@
+depCacheKey: &depCacheKey v1-deps-{{ checksum "~/fts/package-lock.json" }}-{{ checksum "~/fts/.circleci/config.yml" }}
+
+dockerConfig: &dockerConfig
+  docker:
+    - image: circleci/node:10
+
+defaults: &defaults
+  <<: *dockerConfig
+  working_directory: ~/fts
+
+testDefaults: &testDefaults
+  <<: *defaults
+  steps:
+    - attach_workspace:
+        at: ~/
+
+    - run:
+        name: Running Tests
+        command: npm run test
+
+version: 2
+jobs:
+  install:
+    <<: *dockerConfig
+    working_directory: ~/
+    steps:
+      - checkout:
+          path: ~/fts
+
+      - restore_cache:
+          key: *depCacheKey
+
+      - run:
+          name: Installing Dependencies
+          command: cd ~/fts && npm ci
+
+      - save_cache:
+          key: *depCacheKey
+          paths:
+            - ~/fts/node_modules
+
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .ssh/*
+            - fts/*
+
+  lint:
+    <<: *defaults
+    steps:
+      - attach_workspace:
+          at: ~/
+
+      - run:
+          name: Running Lint
+          command: npm run lint
+
+  test-node-8:
+    <<: *testDefaults
+    docker:
+      - image: circleci/node:8
+
+  test-node-10:
+    <<: *testDefaults
+    docker:
+      - image: circleci/node:10
+
+
+  release:
+    <<: *defaults
+    steps:
+      - attach_workspace:
+          at: ~/
+
+      - run:
+          name: Release new version
+          command: npm run release
+
+workflows:
+  version: 2
+  build_test_deploy:
+    jobs:
+      - install
+
+      - lint:
+          requires:
+            - install
+
+      - test-node-8:
+          requires:
+            - install
+
+      - test-node-10:
+          requires:
+            - install
+
+      - release:
+          requires:
+            - lint
+            - test-node-8
+            - test-node-10
+          filters:
+            tags:
+              ignore: /.*/ # ignores all tags
+            branches:
+              only: master
